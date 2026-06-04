@@ -16,7 +16,6 @@ from .const import (
     CONF_ENABLE_LOW_LUX_REOPEN,
     CONF_ENABLE_PRIVACY_HOUR,
     CONF_ENABLE_SUN_ELEVATION_TRACKING,
-    DEFAULTS,
     DOMAIN,
 )
 
@@ -73,12 +72,7 @@ class HaBlindsBaseSwitch(SwitchEntity):
         )
 
     def _cfg(self, key: str) -> Any:
-        """Get configuration value."""
-        if key in self.entry.options:
-            return self.entry.options[key]
-        if key in self.entry.data:
-            return self.entry.data[key]
-        return DEFAULTS.get(key)
+        return self.coordinator._cfg(key)
 
     async def _async_update_config(self, key: str, value: bool) -> None:
         """Update configuration."""
@@ -117,8 +111,8 @@ class HaBlindsAutomationSwitch(HaBlindsBaseSwitch):
         await self.coordinator.async_resume()
 
     async def async_turn_off(self, **kwargs):
-        """Turn the entity off."""
-        await self.coordinator.async_pause()
+        """Disable automation indefinitely until explicitly resumed."""
+        await self.coordinator.async_pause(minutes=60 * 24 * 365)
 
 
 class HaBlindsPrivacyHourSwitch(HaBlindsBaseSwitch):

@@ -113,6 +113,39 @@ class TestDecisionEngine(unittest.TestCase):
         self.assertEqual(res.reason, "sun_elevation_tracking")
 
 
+    def test_pre_sunrise_keeps_closed(self) -> None:
+        """When sunset_closing is enabled, blinds stay closed until sunrise."""
+        cfg = DecisionConfig(
+            **{**_cfg().__dict__,
+               "enable_sunset_closing": True,
+               "night_close_position": 0}
+        )
+        engine = DecisionEngine(cfg)
+        now = datetime(2026, 7, 1, 4, 0, 0)          # After midnight, before sunrise
+        sunrise = datetime(2026, 7, 1, 5, 30, 0)      # Sunrise at 05:30
+        res = engine.evaluate(
+            DecisionInputs(now, 180, 5, 500, 18.0, 0, paused=False, sunrise_time=sunrise)
+        )
+        self.assertFalse(res.should_move)   # Already at 0 (night_close_position)
+        self.assertEqual(res.target_position, 0)
+        self.assertEqual(res.reason, "pre_sunrise_closing")
+
+    def test_after_sunrise_resumes_automation(self) -> None:
+        """After sunrise, pre_sunrise_closing no longer applies."""
+        cfg = DecisionConfig(
+            **{**_cfg().__dict__,
+               "enable_sunset_closing": True,
+               "night_close_position": 0}
+        )
+        engine = DecisionEngine(cfg)
+        now = datetime(2026, 7, 1, 6, 0, 0)           # After sunrise
+        sunrise = datetime(2026, 7, 1, 5, 30, 0)       # Sunrise was at 05:30
+        res = engine.evaluate(
+            DecisionInputs(now, 230, 15, 5000, 18.0, 0, paused=False, sunrise_time=sunrise)
+        )
+        self.assertNotEqual(res.reason, "pre_sunrise_closing")
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -88,6 +88,11 @@ class DecisionEngine:
             if inputs.now >= inputs.sunset_time:
                 return self._result(inputs.current_position, self.config.night_close_position, "sunset_closing", sun_at_window)
 
+        # Pre-sunrise: keep closed until sunrise (+ offset) when sunset_closing is enabled
+        if self.config.enable_sunset_closing and inputs.sunrise_time is not None:
+            if inputs.now < inputs.sunrise_time:
+                return self._result(inputs.current_position, self.config.night_close_position, "pre_sunrise_closing", sun_at_window)
+
         # Privacy hour (if enabled)
         if self.config.enable_privacy_hour and inputs.privacy_entered_at is not None:
             privacy_duration = timedelta(minutes=self.config.privacy_duration_minutes)
@@ -109,10 +114,6 @@ class DecisionEngine:
 
         close_threshold = self.config.lux_close_winter if is_winter else self.config.lux_close_summer
         open_threshold = self.config.lux_open_winter if is_winter else self.config.lux_open_summer
-
-        # Only update debounce if features that use it are enabled
-        if self.config.enable_high_lux_protection or self.config.enable_low_lux_reopen:
-            self._update_debounce(inputs.now, inputs.lux, close_threshold, open_threshold, inputs.high_lux_since, inputs.low_lux_since)
 
         # High lux protection (if enabled)
         if self.config.enable_high_lux_protection and sun_at_window and inputs.high_lux_since is not None:
@@ -161,19 +162,6 @@ class DecisionEngine:
         target = max(0, min(100, int(target_position)))
         return DecisionResult(abs(target - current_position) >= 2, target, reason, sun_at_window)
 
-    def _update_debounce(
-        self,
-        now: datetime,
-        lux: float | None,
-        close_threshold: float,
-        open_threshold: float,
-        high_lux_since: datetime | None,
-        low_lux_since: datetime | None,
-    ) -> None:
-        # This method is now only for calculating new lux thresholds
-        # Actual state tracking is handled in coordinator
-        pass
-
     def _debounced(self, since: datetime | None, now: datetime) -> bool:
         if since is None:
             return False
@@ -208,10 +196,8 @@ class DecisionEngine:
         - High elevation (>50°): Sun from above → OPEN (75%)
         """
         if elevation < 10:
-            return 0  # Very low sun - close completely
+            return 0   # Very low sun — close completely
         if elevation < 25:
-            return 50  # Low sun angle - half open
-        if elevation < 40:
-            return 75  # Medium-high sun - open (sun not in eyes)
-        return 75  # High sun angle - fully open (sun from above)
+            return 50  # Low sun angle — half open
+        return 75      # 25° and above — open (sun not at eye level)
 

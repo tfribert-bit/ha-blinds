@@ -50,19 +50,22 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
     async def _handle_pause(call: ServiceCall) -> None:
         minutes = call.data.get(ATTR_MINUTES)
-        for controller in _iter_targets(call):
+        targets = _iter_targets(call)
+        for controller in targets:
             await controller.async_pause(minutes)
-        _LOGGER.debug("Pause service called for %s entries", len(_iter_targets(call)))
+        _LOGGER.debug("Pause service called for %s entries", len(targets))
 
     async def _handle_resume(call: ServiceCall) -> None:
-        for controller in _iter_targets(call):
+        targets = _iter_targets(call)
+        for controller in targets:
             await controller.async_resume()
-        _LOGGER.debug("Resume service called for %s entries", len(_iter_targets(call)))
+        _LOGGER.debug("Resume service called for %s entries", len(targets))
 
     async def _handle_evaluate(call: ServiceCall) -> None:
-        for controller in _iter_targets(call):
+        targets = _iter_targets(call)
+        for controller in targets:
             await controller.async_evaluate_now()
-        _LOGGER.debug("Evaluate now service called for %s entries", len(_iter_targets(call)))
+        _LOGGER.debug("Evaluate now service called for %s entries", len(targets))
 
     if not hass.services.has_service(DOMAIN, SERVICE_PAUSE):
         hass.services.async_register(

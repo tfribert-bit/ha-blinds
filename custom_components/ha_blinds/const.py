@@ -67,7 +67,7 @@ DEFAULTS: dict[str, int | float | bool] = {
     CONF_SUMMER_PRIVACY_HOUR: 19,
     CONF_PRIVACY_DURATION_MINUTES: 480,  # 8 hours default
     CONF_MANUAL_OVERRIDE_MINUTES: 45,
-    CONF_ZIGBEE_DELAY_SECONDS: 0,  # 2 seconds delay for Zigbee devices
+    CONF_ZIGBEE_DELAY_SECONDS: 0,  # disabled by default; increase for slow Zigbee networks
     # Feature toggles - all enabled by default
     CONF_ENABLE_HEAT_PROTECTION: True,
     CONF_ENABLE_HIGH_LUX_PROTECTION: True,

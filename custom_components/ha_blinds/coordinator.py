@@ -13,6 +13,9 @@ from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
 from homeassistant.helpers.dispatcher import async_dispatcher_send, async_dispatcher_connect
+from homeassistant.helpers.storage import Store
+
+_STORAGE_VERSION = 1
 
 from .const import (
     CONF_COVER_ENTITY,
@@ -85,6 +88,7 @@ class HaBlindsController:
     async def async_start(self) -> None:
         """Start periodic evaluation and create device."""
         self._setup_device()
+        await self._async_load_pause_state()
         tick = self._cfg_int(CONF_TICK_MINUTES)
         self._unsub_interval = async_track_time_interval(
             self.hass,
@@ -165,13 +169,36 @@ class HaBlindsController:
         duration = minutes if minutes and minutes > 0 else self._cfg_int(CONF_MANUAL_OVERRIDE_MINUTES)
         self._runtime.paused_until = dt_util.now() + timedelta(minutes=duration)
         _LOGGER.info("HA Blinds paused for %s minutes on entry %s", duration, self.entry.entry_id)
+        await self._async_save_pause_state()
         self._update_state_attributes()
 
     async def async_resume(self) -> None:
         """Resume automation immediately."""
         self._runtime.paused_until = None
         _LOGGER.info("HA Blinds resumed on entry %s", self.entry.entry_id)
+        await self._async_save_pause_state()
         self._update_state_attributes()
+
+    def _store(self) -> Store:
+        return Store(self.hass, _STORAGE_VERSION, f"{DOMAIN}_pause_{self.entry.entry_id}")
+
+    async def _async_load_pause_state(self) -> None:
+        data = await self._store().async_load() or {}
+        paused_until_str = data.get("paused_until")
+        if paused_until_str:
+            try:
+                paused_until = dt_util.parse_datetime(paused_until_str)
+                if paused_until and paused_until > dt_util.now():
+                    self._runtime.paused_until = paused_until
+                    _LOGGER.info("Restored pause state: paused until %s", paused_until)
+            except (ValueError, TypeError):
+                pass
+
+    async def _async_save_pause_state(self) -> None:
+        data = {}
+        if self._runtime.paused_until:
+            data["paused_until"] = self._runtime.paused_until.isoformat()
+        await self._store().async_save(data)
 
     async def async_evaluate_now(self) -> None:
         """Force immediate re-evaluation."""
@@ -265,7 +292,6 @@ class HaBlindsController:
                 self._runtime.low_lux_since = None
 
             # Update lux tracking based on thresholds
-            is_winter = now.month in (11, 12, 1, 2, 3)
             close_threshold = self._cfg_float(CONF_LUX_CLOSE_WINTER if is_winter else CONF_LUX_CLOSE_SUMMER)
             open_threshold = self._cfg_float(CONF_LUX_OPEN_WINTER if is_winter else CONF_LUX_OPEN_SUMMER)
 
@@ -438,7 +464,7 @@ class HaBlindsController:
             return None
 
     def _get_time_attribute(self, attribute: str) -> datetime | None:
-        """Get a datetime attribute from sun.sun entity."""
+        """Get a datetime attribute from sun.sun entity, normalized to local timezone."""
         state = self.hass.states.get("sun.sun")
         if state is None:
             return None
@@ -448,15 +474,13 @@ class HaBlindsController:
             return None
 
         try:
-            # Parse ISO format datetime string
             if isinstance(time_str, str):
-                # Handle both ISO format with and without timezone
-                if time_str.endswith('+00:00'):
-                    return datetime.fromisoformat(time_str)
-                elif 'T' in time_str:
-                    return datetime.fromisoformat(time_str)
+                parsed = datetime.fromisoformat(time_str)
             elif isinstance(time_str, datetime):
-                return time_str
+                parsed = time_str
+            else:
+                return None
+            return dt_util.as_local(parsed)
         except (ValueError, AttributeError):
             pass
 
