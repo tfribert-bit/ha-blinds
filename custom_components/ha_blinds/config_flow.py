@@ -25,6 +25,7 @@ from .const import (
     CONF_LUX_CLOSE_SUMMER,
     CONF_LUX_CLOSE_WINTER,
     CONF_LUX_SENSOR,
+    CONF_DAYTIME_OPEN_POSITION,
     CONF_MANUAL_OVERRIDE_MINUTES,
     CONF_MAX_STEP_PER_TICK,
     CONF_NIGHT_CLOSE_POSITION,
@@ -165,6 +166,7 @@ def _sanitize_option_defaults(defaults: dict[str, Any]) -> dict[str, Any]:
         CONF_LUX_CLOSE_SUMMER,
         CONF_LUX_CLOSE_WINTER,
         CONF_DEBOUNCE_MINUTES,
+        CONF_DAYTIME_OPEN_POSITION,
         CONF_TICK_MINUTES,
         CONF_MAX_STEP_PER_TICK,
         CONF_HEAT_POSITION,
@@ -501,6 +503,10 @@ class HaBlindsOptionsFlow(config_entries.OptionsFlow):
             vol.Required(CONF_WINTER_PRIVACY_HOUR, default=_hour_default_label(defaults.get(CONF_WINTER_PRIVACY_HOUR, DEFAULTS[CONF_WINTER_PRIVACY_HOUR]), DEFAULTS[CONF_WINTER_PRIVACY_HOUR])): sel.SelectSelector(sel.SelectSelectorConfig(options=[f"{i:02d}:00" for i in range(24)], mode="dropdown")),
             vol.Required(CONF_SUMMER_PRIVACY_HOUR, default=_hour_default_label(defaults.get(CONF_SUMMER_PRIVACY_HOUR, DEFAULTS[CONF_SUMMER_PRIVACY_HOUR]), DEFAULTS[CONF_SUMMER_PRIVACY_HOUR])): sel.SelectSelector(sel.SelectSelectorConfig(options=[f"{i:02d}:00" for i in range(24)], mode="dropdown")),
             vol.Required(CONF_NIGHT_CLOSE_POSITION, default=_night_position_default_label(defaults.get(CONF_NIGHT_CLOSE_POSITION, DEFAULTS[CONF_NIGHT_CLOSE_POSITION]), DEFAULTS[CONF_NIGHT_CLOSE_POSITION])): sel.SelectSelector(sel.SelectSelectorConfig(options=["0 (Closed)", "100 (Privacy Mode)"], mode="dropdown")),
+            vol.Required(
+                CONF_DAYTIME_OPEN_POSITION,
+                default=_coerce_int_default(defaults.get(CONF_DAYTIME_OPEN_POSITION), int(DEFAULTS[CONF_DAYTIME_OPEN_POSITION])),
+            ): vol.All(vol.Coerce(int), vol.Range(min=50, max=100)),
         }
         return self._show_schema_form(
             step_id="thresholds",

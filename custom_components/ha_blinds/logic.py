@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-_DAYTIME_OPEN_POSITION = 75  # Position when sun is not at the window
 
 
 @dataclass
@@ -27,6 +26,7 @@ class DecisionConfig:
     summer_privacy_hour: int
     privacy_duration_minutes: int = 480
     night_close_position: int = 0
+    daytime_open_position: int = 75
     # Feature toggles
     enable_heat_protection: bool = True
     enable_high_lux_protection: bool = True
@@ -123,7 +123,7 @@ class DecisionEngine:
             return DecisionResult(False, inputs.current_position, "sun_tracking_disabled", sun_at_window)
 
         # Sun not at window (morning / evening) — open to let in daylight
-        return self._result(inputs.current_position, _DAYTIME_OPEN_POSITION, "daytime_open", sun_at_window)
+        return self._result(inputs.current_position, self.config.daytime_open_position, "daytime_open", sun_at_window)
 
     def _result(
         self,
