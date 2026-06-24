@@ -98,9 +98,16 @@ class DecisionEngine:
             if inputs.now.hour >= privacy_hour:
                 return self._result(inputs.current_position, self.config.night_close_position, "privacy_hour", sun_at_window)
 
-        # Night close (safety)
+        # Night close (safety) — suppressed during the sunset offset window so blinds
+        # stay open between actual sunset and sunset + offset as configured.
         if inputs.sun_elevation < 0:
-            return self._result(inputs.current_position, self.config.night_close_position, "night_close", sun_at_window)
+            in_sunset_offset_window = (
+                self.config.enable_sunset_closing
+                and inputs.sunset_time is not None
+                and inputs.now < inputs.sunset_time
+            )
+            if not in_sunset_offset_window:
+                return self._result(inputs.current_position, self.config.night_close_position, "night_close", sun_at_window)
 
         # Daytime: branch on whether sun is in front of the window
         if sun_at_window:

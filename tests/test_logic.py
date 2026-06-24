@@ -187,6 +187,19 @@ class TestDecisionEngine(unittest.TestCase):
         self.assertEqual(res.target_position, 0)
         self.assertEqual(res.reason, "sunset_closing")
 
+    def test_night_close_does_not_fire_in_sunset_offset_window(self) -> None:
+        """Between actual sunset and sunset+offset, night_close must not fire."""
+        engine = DecisionEngine(_cfg(enable_sunset_closing=True))
+        # Sun is below horizon (21:31) but offset window ends at 22:02
+        now = datetime(2026, 6, 24, 21, 31, 0)
+        sunset_with_offset = datetime(2026, 6, 24, 22, 2, 0)
+        sunrise = datetime(2026, 6, 25, 4, 50, 0)
+        res = engine.evaluate(
+            DecisionInputs(now, 300, -1.5, 100, 18.0, 75, paused=False,
+                           sunset_time=sunset_with_offset, sunrise_time=sunrise)
+        )
+        self.assertNotEqual(res.reason, "night_close")
+
     def test_pre_sunrise_does_not_fire_in_sunset_offset_window(self) -> None:
         """Between actual sunset and sunset+offset, blinds should stay open — not pre_sunrise."""
         engine = DecisionEngine(_cfg(enable_sunset_closing=True))
