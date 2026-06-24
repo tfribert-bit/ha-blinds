@@ -79,10 +79,13 @@ class DecisionEngine:
             if inputs.now >= inputs.sunset_time:
                 return self._result(inputs.current_position, self.config.night_close_position, "sunset_closing", sun_at_window)
 
-        # Pre-sunrise: keep closed until sunrise + offset (sleep-in)
+        # Pre-sunrise: keep closed until sunrise + offset (sleep-in).
+        # Guard: only fire after sunset_closing would have fired — prevents
+        # pre_sunrise from jumping in during the sunset offset window.
         if self.config.enable_sunset_closing and inputs.sunrise_time is not None:
             if inputs.now < inputs.sunrise_time:
-                return self._result(inputs.current_position, self.config.night_close_position, "pre_sunrise_closing", sun_at_window)
+                if inputs.sunset_time is None or inputs.now >= inputs.sunset_time:
+                    return self._result(inputs.current_position, self.config.night_close_position, "pre_sunrise_closing", sun_at_window)
 
         # Privacy hour
         if self.config.enable_privacy_hour and inputs.privacy_entered_at is not None:

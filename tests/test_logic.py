@@ -187,6 +187,32 @@ class TestDecisionEngine(unittest.TestCase):
         self.assertEqual(res.target_position, 0)
         self.assertEqual(res.reason, "sunset_closing")
 
+    def test_pre_sunrise_does_not_fire_in_sunset_offset_window(self) -> None:
+        """Between actual sunset and sunset+offset, blinds should stay open — not pre_sunrise."""
+        engine = DecisionEngine(_cfg(enable_sunset_closing=True))
+        # Sunset was at 21:00, offset window ends at 22:00; it's now 21:04
+        now = datetime(2026, 6, 24, 21, 4, 0)
+        sunset_with_offset = datetime(2026, 6, 24, 22, 0, 0)   # today sunset + 60 min
+        sunrise = datetime(2026, 6, 25, 4, 50, 0)               # tomorrow
+        res = engine.evaluate(
+            DecisionInputs(now, 300, -1, 200, 18.0, 75, paused=False,
+                           sunset_time=sunset_with_offset, sunrise_time=sunrise)
+        )
+        self.assertNotEqual(res.reason, "pre_sunrise_closing")
+
+    def test_blinds_closed_after_sunset_offset_window(self) -> None:
+        """After sunset+offset, blinds should be closed (sunset_closing or pre_sunrise_closing)."""
+        engine = DecisionEngine(_cfg(enable_sunset_closing=True))
+        now = datetime(2026, 6, 24, 22, 5, 0)                   # past offset window
+        sunset_with_offset = datetime(2026, 6, 24, 22, 0, 0)
+        sunrise = datetime(2026, 6, 25, 4, 50, 0)
+        res = engine.evaluate(
+            DecisionInputs(now, 300, -1, 200, 18.0, 75, paused=False,
+                           sunset_time=sunset_with_offset, sunrise_time=sunrise)
+        )
+        self.assertIn(res.reason, ("sunset_closing", "pre_sunrise_closing"))
+        self.assertEqual(res.target_position, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

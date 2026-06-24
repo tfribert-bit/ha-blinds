@@ -490,11 +490,20 @@ class HaBlindsController:
         return None
 
     def _get_sunset_time(self, now: datetime) -> datetime | None:
-        """Get sunset time with offset applied."""
-        sunset_time = self._get_time_attribute("next_setting")
+        """Get sunset time with offset applied.
 
+        After today's sunset, next_setting flips to tomorrow's value.
+        Detect this by checking if next_setting comes after next_rising (nighttime),
+        then subtract one day to recover today's actual sunset.
+        """
+        sunset_time = self._get_time_attribute("next_setting")
         if sunset_time is None:
             return None
+
+        sunrise_time = self._get_time_attribute("next_rising")
+        if sunrise_time is not None and sunset_time > sunrise_time:
+            # Post-sunset: next_setting is tomorrow's — recover today's actual sunset.
+            sunset_time = sunset_time - timedelta(days=1)
 
         offset_minutes = self._cfg_int(CONF_SUNSET_OFFSET_MINUTES)
         if offset_minutes != 0:
